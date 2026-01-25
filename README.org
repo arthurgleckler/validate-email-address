@@ -1,0 +1,111 @@
+#+TITLE: RFC-Compliant Email Address Validator for Chibi Scheme
+#+SUBTITLE: An email address validator for Chibi Scheme designed for user input validation
+#+AUTHOR: Arthur A. Gleckler
+#+DATE: 2026
+
+# SPDX-FileCopyrightText: 2026 Arthur A. Gleckler
+# SPDX-License-Identifier: MIT
+
+* Features
+
+- *Designed for user input validation*: Not for SMTP protocol
+  handling.  Rejects control characters including CR, LF, CRLF.
+- *164 unit tests*
+- *Binary validation*: ~valid-email-address?~ returns ~#true~ (accept)
+  or ~#false~ (reject).
+- *No FFI required*: Uses Chibi's PEG parsing library.
+- *RFC 5322 compliant*: Full implementation of email address grammar.
+- *Accepts warnings, and rejects only errors*: Collapses all non-error
+  categories into "accept."
+
+* Files
+
+- [[LICENSES/][LICENSES/]] - license texts for MIT and BSD-3-Clause
+- [[Makefile][Makefile]] - build automation (targets: ~check~, ~clean~, ~help~)
+- [[run-tests.scm][run-tests.scm]] - test runner
+- [[test-data.scm][test-data.scm]] - S-expression test suite with binary pass/fail
+  expectations (164 tests)
+  - Derived from [[https://raw.githubusercontent.com/dominicsayers/isemail/master/test/tests.xml][tests.xml]] test suite from [[https://github.com/dominicsayers/isemail][isemail]].
+- [[validate.scm][validate.scm]] - validator implementation
+- [[validate.sld][validate.sld]] - R7RS library definition
+
+* Usage
+
+#+BEGIN_SRC scheme
+(import (validate))
+
+(valid-email-address? "test@example.com")       ; => #true
+(valid-email-address? "test@.example.com")      ; => #false
+(valid-email-address? "test..test@example.com") ; => #false
+#+END_SRC
+
+* Running Tests
+
+#+BEGIN_SRC bash
+make check
+#+END_SRC
+
+* What It Validates
+
+** Accepts (returns ~#true~)
+
+- Valid email addresses: ~test@example.com~
+- Quoted strings in local part: ~"test"@example.com~
+- Domain literals: ~test@[192.168.1.1]~
+- Comments (CFWS): ~test(comment)@example.com~
+- Obsolete syntax: ~"test"."test"@example.com~
+- RFC5322/RFC5321 warnings (e.g., long labels, numeric TLDs)
+- Deprecated forms (DEPREC category)
+
+** Rejects (returns ~#false~)
+
+- Control characters (CR, LF, CRLF, and all ASCII 0-31, 127)
+- Empty addresses
+- Missing @ sign
+- Missing local part or domain
+- Leading/trailing dots: ~.test@example.com~, ~test.@example.com~
+- Consecutive dots: ~test..test@example.com~
+- Hyphens at start/end of domain labels: ~test@-example.com~
+- Invalid domain literal syntax
+- Syntax errors (ERR category)
+
+* Implementation Details
+
+- Uses PEG (Parsing Expression Grammar) combinators from ~(chibi parse)~.
+- Two-phase validation: PEG parsing + semantic checks
+- Supports full RFC 5322 grammar including:
+  - ~dot-atom~ and ~quoted-string~ in local part
+  - ~obs-local-part~ for obsolete local part syntax
+  - ~domain-literal~ with quoted-pair escapes
+  - ~obs-domain~ for obsolete domain syntax (CFWS around dots)
+  - Comments and folding whitespace (CFWS/FWS)
+- Ensures that entire input is consumed.
+
+* Test Suite
+
+The validator is tested against a suite derived from the comprehensive
+test suite of [[https://github.com/dominicsayers/isemail][isemail]], which has 164 tests.  The ~isemail~ parser is
+more ambitious, and more forgiving.  We've adjusted the expected
+results in two ways:
+
+  1. ~isemail~ distinguishes between types of errors, whereas our
+     validation is pass/fail.
+
+  2. ~isemail~ accepts control characters, but we don't.  Accepting
+     control characters allows ~isemail~ to handle addresses that
+     appear in the SMTP protocol.  Our goal is to validate user input,
+     e.g. when accepting an email address in a form.
+
+* License
+
+- The test suite, [[test-data.scm][test-data.scm]], is licensed under the
+  [[LICENSES/BSD-3-Clause.txt][BSD-3-Clause License]].
+    - It was derived from the [[https://github.com/dominicsayers/isemail][isemail test suite]] by Dominic Sayers,
+      which uses that license.
+- Everything else uses the [[LICENSES/MIT.txt][MIT License]].
+
+* References
+
+- [[https://tools.ietf.org/html/rfc5321][RFC 5321]] - SMTP
+- [[https://tools.ietf.org/html/rfc5322][RFC 5322]] - Internet Message Format
+- [[https://github.com/dominicsayers/isemail][isemail test suite]] - Comprehensive email validation tests
