@@ -1,4 +1,5 @@
 ;;;; Strict binary email address validator for user input
+;;;; for Chibi Scheme
 ;;;;
 ;;;; SPDX-License-Identifier: MIT
 ;;;; SPDX-FileCopyrightText: 2026 Arthur A. Gleckler
